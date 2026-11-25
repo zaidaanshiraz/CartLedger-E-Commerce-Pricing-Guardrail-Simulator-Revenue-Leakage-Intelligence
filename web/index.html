@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CartLedger — E-Commerce Revenue, Pricing Simulator &amp; SQL Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-outer: #D5CFC7;
+      --frame-dark: #252A30;
+      --sidebar-dark: #2C3137;
+      --canvas-bg: #E6E1DA;
+      --card-bg: #F3EFEA;
+      --card-border: #DCD6CD;
+      --text-primary: #1F2428;
+      --text-secondary: #686E73;
+    }
+
+    body {
+      background-color: var(--bg-outer);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+
+    .enterprise-frame {
+      background-color: var(--frame-dark);
+      border-radius: 22px;
+      box-shadow: 0 28px 60px -15px rgba(24, 28, 32, 0.45), 0 0 0 6px #343A40;
+      overflow: hidden;
+    }
+
+    .sidebar-panel {
+      background-color: var(--sidebar-dark);
+      color: #D8DEE4;
+      border-right: 1px solid #3A4047;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #B8C0C8;
+      transition: all 0.15s ease;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+    }
+    .nav-item:hover {
+      background-color: rgba(255, 255, 255, 0.06);
+      color: #FFFFFF;
+    }
+    .nav-item.active {
+      background-color: #3A4047;
+      color: #6EE7B7;
+      border-left: 3px solid #10B981;
+      font-weight: 600;
+    }
+
+    .slicer-pill {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+      padding: 6px 11px;
+      border-radius: 6px;
+      background-color: #353B42;
+      color: #CFD6DC;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+    }
+    .slicer-pill:hover { background-color: #3E454D; }
+    .slicer-pill.active {
+      background-color: #464E57;
+      color: #FFFFFF;
+      border-color: #7D858D;
+      font-weight: 600;
+    }
+    .slicer-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 9999px;
+      background-color: #7D858D;
+      flex-shrink: 0;
+    }
+    .slicer-pill.active .slicer-dot { background-color: #FFFFFF; }
+
+    .sidebar-select {
+      width: 100%;
+      background-color: #353B42;
+      color: #E2E6EA;
+      border: 1px solid #454C54;
+      border-radius: 6px;
+      padding: 6px 9px;
+      font-size: 11px;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .workspace-canvas { background-color: var(--canvas-bg); }
+
+    .bi-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(31, 36, 40, 0.04);
+    }
+
+    .case-btn {
+      background-color: #E6E1DA;
+      border: 1px solid #D5CFC7;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .case-btn:hover { background-color: #DCD6CD; }
+    .case-btn.active {
+      background-color: #2C343D;
+      color: #FFFFFF;
+      border-color: #2C343D;
+    }
+
+    .delta-pos { color: #2B6E46; font-weight: 600; }
+    .delta-neg { color: #A63A3A; font-weight: 600; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #E6E1DA; }
+    ::-webkit-scrollbar-thumb { background: #B8B1A6; border-radius: 3px; }
+  </style>
+</head>
+<body class="p-3 md:p-6">
+
+  <!-- ENTERPRISE DARK-BEZEL SHELL -->
+  <div class="max-w-[1620px] mx-auto enterprise-frame flex flex-col min-h-[880px]">
+
+    <!-- TOP DARK HEADER BAR -->
+    <header class="bg-[#252A30] text-white px-5 py-3 flex items-center justify-between border-b border-[#383E46]">
+      <div class="flex items-center gap-8">
+        <div class="flex items-center gap-2.5 w-[195px]">
+          <div class="w-7 h-7 rounded-full border border-emerald-400/80 bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-xs font-bold tracking-tighter">
+            CL
+          </div>
+          <div class="leading-tight">
+            <div class="text-xs font-bold tracking-tight text-white">CartLedger</div>
+            <div class="text-[10px] text-emerald-300/90 font-medium">Retail P&amp;L &amp; SQL Analytics</div>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 id="header-title" class="text-base font-bold tracking-tight text-white">Revenue &amp; Profitability Overview</h1>
+          <span id="cl-scope-badge" class="px-2.5 py-0.5 rounded-full bg-[#353B42] text-[11px] font-mono text-slate-200 border border-[#464E57]">
+            Scope: All Regions · All Merchandise Tiers · 2,495 Paid Orders
+          </span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4 text-xs text-slate-300">
+        <span class="hidden md:inline-block px-2.5 py-1 rounded bg-[#353B42] text-[11px] font-mono text-slate-200 border border-[#464E57]">8 Tables · 16 SQL Case Files · EXPLAIN PLAN</span>
+        <div class="flex items-center gap-2 pl-2 border-l border-[#3A4047]">
+          <div class="w-6 h-6 rounded-full bg-[#49515A] text-white flex items-center justify-center text-[10px] font-bold">MZ</div>
+          <span class="font-medium text-slate-200">Mohammed Zaidaan Shiraz</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN BODY: LEFT CHARCOAL SIDEBAR + RIGHT WARM SAND WORKSPACE -->
+    <div class="flex-1 flex flex-col lg:flex-row">
+
+      <!-- LEFT SIDEBAR -->
+      <aside class="sidebar-panel w-full lg:w-[228px] shrink-0 p-4 flex flex-col justify-between">
+        <div class="space-y-4">
+          <nav class="space-y-1">
+            <button type="button" onclick="switchTab('executive')" id="btn-executive" class="nav-item active">
+              <i data-lucide="home" class="w-3.5 h-3.5"></i> Revenue Overview
+            </button>
+            <button type="button" onclick="switchTab('simulator')" id="btn-simulator" class="nav-item">
+              <i data-lucide="sliders" class="w-3.5 h-3.5"></i> Pricing &amp; Leakage Sim
+            </button>
+            <button type="button" onclick="switchTab('basket')" id="btn-basket" class="nav-item">
+              <i data-lucide="layers" class="w-3.5 h-3.5"></i> Basket &amp; Cohort Matrix
+            </button>
+            <button type="button" onclick="switchTab('studio')" id="btn-studio" class="nav-item">
+              <i data-lucide="terminal" class="w-3.5 h-3.5"></i> 16 SQL Case Files
+            </button>
+          </nav>
+
+          <hr class="border-[#3A4047]" />
+
+          <!-- Merchandise Tier Quick Slicer Pills -->
+          <div class="space-y-1.5">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-1">Merchandise Tier</div>
+            <button type="button" data-tier="All" onclick="setTierSlicer('All', this)" class="slicer-pill tier-pill active">
+              <span class="flex items-center gap-2"><span class="slicer-dot"></span> All Tiers</span>
+              <span class="text-[10px] font-mono opacity-75">8 Cats</span>
+            </button>
+            <button type="button" data-tier="High-Margin" onclick="setTierSlicer('High-Margin', this)" class="slicer-pill tier-pill">
+              <span class="flex items-center gap-2"><span class="slicer-dot"></span> High-Margin Tier</span>
+              <span class="text-[10px] font-mono opacity-75">Apparel</span>
+            </button>
+            <button type="button" data-tier="Core-Margin" onclick="setTierSlicer('Core-Margin', this)" class="slicer-pill tier-pill">
+              <span class="flex items-center gap-2"><span class="slicer-dot"></span> Core-Margin Tier</span>
+              <span class="text-[10px] font-mono opacity-75">Home</span>
+            </button>
+            <button type="button" data-tier="Volume-Driver" onclick="setTierSlicer('Volume-Driver', this)" class="slicer-pill tier-pill">
+              <span class="flex items-center gap-2"><span class="slicer-dot"></span> Volume-Driver Tier</span>
+              <span class="text-[10px] font-mono opacity-75">Tech</span>
+            </button>
+          </div>
+
+          <!-- Region Dropdown Slicer -->
+          <div class="space-y-1.5">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-1">Regional Slicer</div>
+            <select id="filter-region" onchange="refreshOverview()" class="sidebar-select">
+              <option value="All">Region: All India</option>
+              <option value="North">Region: North</option>
+              <option value="South">Region: South</option>
+              <option value="West">Region: West</option>
+              <option value="East">Region: East</option>
+              <option value="Central">Region: Central</option>
+            </select>
+            <input type="hidden" id="filter-tier" value="All" />
+          </div>
+
+          <!-- Quick SQL Case Jumpers -->
+          <div class="space-y-1.5 pt-1">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-1">Flagship SQL Proofs</div>
+            <button type="button" onclick="switchTab('studio'); selectCaseFile(3);" class="slicer-pill">
+              <span class="flex items-center gap-2"><span class="slicer-dot"></span> CF-04 Distinct Grain</span>
+            </button>
+            <button type="button" onclick="switchTab('studio'); selectCaseFile(12);" class="slicer-pill">
+              <span class="flex items-center gap-2"><span class="slicer-dot"></span> CF-13 Basket Affinity</span>
+            </button>
+            <button type="button" onclick="switchTab('studio'); selectCaseFile(15);" class="slicer-pill">
+              <span class="flex items-center gap-2"><span class="slicer-dot"></span> CF-16 CFO PVM Bridge</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-[#3A4047] space-y-3">
+          <button type="button" onclick="resetCartLedgerFilters()" class="w-full px-2.5 py-1.5 rounded bg-[#3A4047] hover:bg-[#49515A] text-[11px] font-medium text-white transition flex items-center justify-center gap-1.5">
+            <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset All Slicers
+          </button>
+          <div class="text-[11px] text-slate-400 leading-snug">
+            <div class="flex items-center gap-1.5 text-slate-300 font-medium">
+              <i data-lucide="clock" class="w-3 h-3"></i> Database Engine:
+            </div>
+            <div class="mt-0.5 font-mono text-[10px]">SQLite Read-Only (?mode=ro)</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- RIGHT WARM SAND WORKSPACE -->
+      <main class="workspace-canvas flex-1 p-5 overflow-x-hidden">
+
+        <!-- TOP 5 KPI CARDS WITH SPARKLINES & BENCHMARK DELTAS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-4">
+          <div class="bi-card p-3.5 flex flex-col justify-between">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="text-[11px] font-medium text-[#686E73]">Gross Merchandise Sales</div>
+                <div id="kpi-gross" class="text-xl font-extrabold text-[#1F2428] mt-0.5">₹17.15M</div>
+              </div>
+              <div id="spark-cl-1" class="w-[76px] h-[38px]"></div>
+            </div>
+            <div class="grid grid-cols-2 pt-2 mt-2 border-t border-[#E2DDD5] text-[10px]">
+              <div><div class="text-[#686E73]">Paid Orders:</div><div id="kpi-orders" class="font-bold text-[#1F2428] mt-0.5">2,495</div></div>
+              <div><div class="text-[#686E73]">Gross Units:</div><div id="kpi-units" class="delta-pos mt-0.5">▲ 7,001</div></div>
+            </div>
+          </div>
+
+          <div class="bi-card p-3.5 flex flex-col justify-between">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="text-[11px] font-medium text-[#686E73]">Net Sales (Ex-Tax)</div>
+                <div id="kpi-netsales" class="text-xl font-extrabold text-[#1F2428] mt-0.5">₹15.74M</div>
+              </div>
+              <div id="spark-cl-2" class="w-[76px] h-[38px]"></div>
+            </div>
+            <div class="grid grid-cols-2 pt-2 mt-2 border-t border-[#E2DDD5] text-[10px]">
+              <div><div class="text-[#686E73]">Discounts:</div><div id="kpi-discounts" class="font-bold text-[#1F2428] mt-0.5">₹1.40M</div></div>
+              <div><div class="text-[#686E73]">Markdown %:</div><div id="kpi-markdown-pct" class="delta-neg mt-0.5">-8.18%</div></div>
+            </div>
+          </div>
+
+          <div class="bi-card p-3.5 flex flex-col justify-between">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="text-[11px] font-medium text-[#686E73]">Net Realized Cash</div>
+                <div id="kpi-realized" class="text-xl font-extrabold text-[#1F2428] mt-0.5">₹16.53M</div>
+              </div>
+              <div id="spark-cl-3" class="w-[76px] h-[38px]"></div>
+            </div>
+            <div class="grid grid-cols-2 pt-2 mt-2 border-t border-[#E2DDD5] text-[10px]">
+              <div><div class="text-[#686E73]">Tax Billed:</div><div id="kpi-tax" class="font-bold text-[#1F2428] mt-0.5">₹1.89M</div></div>
+              <div><div class="text-[#686E73]">Retained %:</div><div class="delta-pos mt-0.5">▲ 93.71%</div></div>
+            </div>
+          </div>
+
+          <div class="bi-card p-3.5 flex flex-col justify-between">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="text-[11px] font-medium text-[#686E73]">Approved Refunds</div>
+                <div id="kpi-refunds" class="text-xl font-extrabold text-[#1F2428] mt-0.5">₹1.11M</div>
+              </div>
+              <div id="spark-cl-4" class="w-[76px] h-[38px]"></div>
+            </div>
+            <div class="grid grid-cols-2 pt-2 mt-2 border-t border-[#E2DDD5] text-[10px]">
+              <div><div class="text-[#686E73]">Returned:</div><div id="kpi-returns-units" class="font-bold text-[#1F2428] mt-0.5">442 Units</div></div>
+              <div><div class="text-[#686E73]">Return Rate:</div><div class="delta-neg mt-0.5">▲ 6.31%</div></div>
+            </div>
+          </div>
+
+          <div class="bi-card p-3.5 flex flex-col justify-between">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="text-[11px] font-medium text-[#686E73]">Pending Leakage</div>
+                <div id="kpi-leakage" class="text-xl font-extrabold text-[#1F2428] mt-0.5">₹1.37M</div>
+              </div>
+              <div id="spark-cl-5" class="w-[76px] h-[38px]"></div>
+            </div>
+            <div class="grid grid-cols-2 pt-2 mt-2 border-t border-[#E2DDD5] text-[10px]">
+              <div><div class="text-[#686E73]">Cohort:</div><div class="font-bold text-[#1F2428] mt-0.5">Delivered</div></div>
+              <div><div class="text-[#686E73]">Action:</div><div class="delta-neg mt-0.5">▲ Dunning Sim</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================================ -->
+        <!-- VIEW 1: EXECUTIVE OVERVIEW (EXACT 3-ROW GRID FROM IMAGE)         -->
+        <!-- ================================================================ -->
+        <div id="view-executive" class="space-y-3.5">
+
+          <!-- ROW 2 -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+            <div class="lg:col-span-5 bi-card p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between">
+                  <h3 class="text-xs font-bold text-[#1F2428]">Net Sales by Promotional Discount Band</h3>
+                  <i data-lucide="chevron-right" class="w-4 h-4 text-[#686E73]"></i>
+                </div>
+                <p class="text-[10px] italic text-[#686E73]">Drilldown: Discount Tier &gt; Realized Gross Profit</p>
+              </div>
+              <div id="chart-discount-columns" class="w-full h-[215px]"></div>
+            </div>
+
+            <div class="lg:col-span-4 bi-card p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between">
+                  <h3 class="text-xs font-bold text-[#1F2428]">Revenue Share by Customer RFM Segment</h3>
+                  <i data-lucide="chevron-right" class="w-4 h-4 text-[#686E73]"></i>
+                </div>
+                <p class="text-[10px] italic text-[#686E73]">Drilldown: NTILE(5) Recency-Frequency-Monetary</p>
+              </div>
+              <div id="chart-rfm-donut" class="w-full h-[215px]"></div>
+            </div>
+
+            <div class="lg:col-span-3 bi-card p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between">
+                  <h3 class="text-xs font-bold text-[#1F2428]">Gross Profit by Top Category</h3>
+                  <i data-lucide="chevron-right" class="w-4 h-4 text-[#686E73]"></i>
+                </div>
+                <p class="text-[10px] italic text-[#686E73]">Drilldown: Category &gt; SKU Margin</p>
+              </div>
+              <div id="top-cat-bars" class="space-y-2.5 my-auto py-2"></div>
+            </div>
+          </div>
+
+          <!-- ROW 3 -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+            <div class="lg:col-span-5 flex flex-col gap-3.5">
+              <div class="bi-card p-4 flex-1 flex flex-col justify-between">
+                <div>
+                  <h3 class="text-xs font-bold text-[#1F2428] mb-2">Margin-Destroying SKUs (HAVING SUM(gross_profit) &lt; 0)</h3>
+                  <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-[11px]">
+                      <thead>
+                        <tr class="border-b border-[#DCD6CD] text-[#686E73] font-medium">
+                          <th class="py-1.5 px-2">Product ID</th>
+                          <th class="py-1.5 px-2">Category</th>
+                          <th class="py-1.5 px-2 text-right">Units</th>
+                          <th class="py-1.5 px-2 text-right">Net Loss</th>
+                        </tr>
+                      </thead>
+                      <tbody id="loss-sku-tbody" class="divide-y divide-[#E5E0D8]"></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="pt-2 mt-2 border-t border-[#E2DDD5] flex justify-between items-center">
+                  <button type="button" onclick="switchTab('simulator')" class="text-[10px] font-semibold text-[#2B6E46] hover:underline flex items-center gap-1">
+                    Simulate Discount Cap Recovery <i data-lucide="sliders" class="w-3 h-3"></i>
+                  </button>
+                  <button type="button" onclick="switchTab('studio'); selectCaseFile(5);" class="text-[10px] italic font-medium text-[#323A45] hover:underline flex items-center gap-1">
+                    Inspect CF-06 SQL <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="bi-card px-4 py-2.5 flex items-center justify-between text-[11px] text-[#495057]">
+                <span class="font-medium truncate">Grain Proof: 2,495 Unique Paid Orders vs 4,507 Summed Category Orders (CF-04 &amp; CF-15)</span>
+                <span class="font-mono text-[10px] text-[#686E73] shrink-0 ml-2">16/16 Pytest</span>
+              </div>
+            </div>
+
+            <div class="lg:col-span-4 bi-card p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between">
+                  <h3 class="text-xs font-bold text-[#1F2428]">Weighted Margin % by Merchandise Category</h3>
+                  <i data-lucide="chevron-right" class="w-4 h-4 text-[#686E73]"></i>
+                </div>
+                <p class="text-[10px] italic text-[#686E73]">Formula: SUM(gross_profit) / SUM(net_sales_before_tax)</p>
+              </div>
+              <div id="cat-pill-bars" class="space-y-2 my-auto py-2"></div>
+            </div>
+
+            <div class="lg:col-span-3 bi-card p-4 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between">
+                  <h3 class="text-xs font-bold text-[#1F2428]">Order Settlement Leakage Matrix</h3>
+                  <i data-lucide="chevron-right" class="w-4 h-4 text-[#686E73]"></i>
+                </div>
+                <p class="text-[10px] italic text-[#686E73]">Drilldown: Order Status × Payment Status</p>
+              </div>
+              <div id="chart-leakage-donut" class="w-full h-[225px]"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ================================================================ -->
+        <!-- VIEW 2: PRESCRIPTIVE PRICING GUARDRAIL & DUNNING SIMULATOR       -->
+        <!-- ================================================================ -->
+        <div id="view-simulator" class="hidden space-y-4">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+            <!-- Left 4 Cols: Interactive Sliders & P&L Impact Scorecard -->
+            <div class="lg:col-span-4 bi-card p-5 space-y-4">
+              <div>
+                <div class="text-[10px] font-mono uppercase text-[#686E73]">Prescriptive Retail P&amp;L Engine</div>
+                <h2 class="text-sm font-bold text-[#1F2428] mt-1">Promotional Guardrail &amp; Leakage Recovery Simulator</h2>
+                <p class="text-xs text-[#686E73] mt-1">Simulate capping deep promotional markdowns (`20–30%`) across the 8-table ledger and recovering uncollected `Completed + Pending` orders (`₹1.37M`) via automated payment dunning.</p>
+              </div>
+
+              <!-- Slider 1: Max Promotional Discount Cap -->
+              <div class="p-3.5 rounded-lg bg-[#E6E1DA] border border-[#D5CFC7] space-y-2">
+                <div class="flex justify-between items-center">
+                  <label class="text-xs font-semibold text-[#1F2428]">Max Promotional Discount Cap (%)</label>
+                  <span id="sim-cap-val" class="text-sm font-mono font-bold text-[#1F2428]">8%</span>
+                </div>
+                <input id="sim-cap-slider" type="range" min="0" max="30" step="1" value="8" oninput="updatePricingSimulation()" class="w-full accent-[#2C3137] cursor-pointer" />
+                <div class="flex justify-between text-[10px] text-[#686E73] font-mono">
+                  <span>Zero Promo (0%)</span>
+                  <span>Current Max (30%)</span>
+                </div>
+              </div>
+
+              <!-- Slider 2: Pending Payment Dunning Recovery % -->
+              <div class="p-3.5 rounded-lg bg-[#E6E1DA] border border-[#D5CFC7] space-y-2">
+                <div class="flex justify-between items-center">
+                  <label class="text-xs font-semibold text-[#1F2428]">Pending Payment Dunning Recovery (%)</label>
+                  <span id="sim-dunning-val" class="text-sm font-mono font-bold text-[#1F2428]">65%</span>
+                </div>
+                <input id="sim-dunning-slider" type="range" min="0" max="100" step="5" value="65" oninput="updatePricingSimulation()" class="w-full accent-[#2C3137] cursor-pointer" />
+                <div class="flex justify-between text-[10px] text-[#686E73] font-mono">
+                  <span>0% Recovered</span>
+                  <span>Pool: ₹1,372,054</span>
+                </div>
+              </div>
+
+              <!-- Real-Time P&L Impact Output -->
+              <div class="space-y-2 text-xs">
+                <div class="p-3 rounded bg-[#E6E1DA] flex justify-between items-center">
+                  <span class="text-[#686E73]">Baseline Gross Profit (Paid)</span>
+                  <span id="sim-base-profit" class="font-mono font-bold text-[#1F2428]">—</span>
+                </div>
+                <div class="p-3 rounded bg-[#E6E1DA] flex justify-between items-center">
+                  <span class="text-[#686E73]">Margin Recovered from Discount Cap</span>
+                  <span id="sim-margin-gain" class="font-mono font-bold text-[#2B6E46]">—</span>
+                </div>
+                <div class="p-3 rounded bg-[#E6E1DA] flex justify-between items-center">
+                  <span class="text-[#686E73]">Simulated Weighted Margin (%)</span>
+                  <span id="sim-new-margin" class="font-mono font-bold text-[#1F2428]">—</span>
+                </div>
+                <div class="p-3 rounded bg-[#E6E1DA] flex justify-between items-center">
+                  <span class="text-[#686E73]">Cash Recovered from Pending Orders</span>
+                  <span id="sim-dunning-cash" class="font-mono font-bold text-[#2B6E46]">—</span>
+                </div>
+                <div class="p-3 rounded bg-[#E6E1DA] flex justify-between items-center">
+                  <span class="text-[#686E73]">Loss-Making SKUs Flipped Profitable</span>
+                  <span id="sim-skus-flipped" class="font-mono font-bold text-[#1F2428]">—</span>
+                </div>
+                <div class="p-3.5 rounded bg-[#2C343D] text-white flex justify-between items-center">
+                  <span class="font-semibold">Total Net P&amp;L Profit Uplift</span>
+                  <span id="sim-total-uplift" class="text-base font-mono font-extrabold">—</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right 8 Cols: Loss-Making SKU Remediation Table + Before/After Chart -->
+            <div class="lg:col-span-8 space-y-4">
+              <div class="bi-card p-5">
+                <div class="flex items-center justify-between mb-2">
+                  <div>
+                    <h3 class="text-xs font-bold text-[#1F2428]">Loss-Making SKU Remediation Audit (Before vs. After Promotional Cap)</h3>
+                    <p class="text-[11px] text-[#686E73]">Live SQL recalculation on the 5 margin-destroying SKUs isolated in Case File CF-06</p>
+                  </div>
+                  <span class="text-[10px] font-mono px-2.5 py-1 rounded bg-[#E6E1DA] text-[#323A45]">Live SQLite Simulation</span>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr class="bg-[#E6E1DA] text-[#323A45] font-semibold">
+                        <th class="py-2 px-3">SKU ID</th>
+                        <th class="py-2 px-3">Product &amp; Category</th>
+                        <th class="py-2 px-3 text-right">Units</th>
+                        <th class="py-2 px-3 text-right">Avg Promo → Capped</th>
+                        <th class="py-2 px-3 text-right text-[#A63A3A]">Current Loss</th>
+                        <th class="py-2 px-3 text-right text-[#2B6E46]">Simulated Profit</th>
+                        <th class="py-2 px-3 text-right">P&amp;L Swing</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sim-sku-tbody" class="divide-y divide-[#E2DDD5] font-mono text-xs"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="bi-card p-4">
+                <h3 class="text-xs font-bold text-[#1F2428] mb-1">SKU Profit Remediation Waterfall (Current Net Loss vs Simulated Profit)</h3>
+                <div id="chart-sim-skus" class="w-full h-[230px]"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ================================================================ -->
+        <!-- VIEW 3: MARKET BASKET AFFINITY, COHORTS & SQL TRAP COMPARATOR    -->
+        <!-- ================================================================ -->
+        <div id="view-basket" class="hidden space-y-4">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+            <!-- Left 6 Cols: Cross-Category Market Basket Affinity (CF-13) -->
+            <div class="lg:col-span-6 bi-card p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-xs font-bold text-[#1F2428]">Market Basket Cross-Category Co-Purchase &amp; Lift (CF-13)</h3>
+                  <p class="text-[11px] text-[#686E73]">Self-Join (`a.order_id = b.order_id AND a.category_id &lt; b.category_id`) measuring Support, Confidence &amp; Lift</p>
+                </div>
+                <button type="button" onclick="switchTab('studio'); selectCaseFile(12);" class="px-2.5 py-1 rounded bg-[#E6E1DA] hover:bg-[#DCD6CD] text-[10px] font-mono font-semibold text-[#1F2428]">Open CF-13 SQL</button>
+              </div>
+              <div class="overflow-x-auto max-h-[290px]">
+                <table class="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr class="bg-[#E6E1DA] text-[#323A45] font-semibold sticky top-0">
+                      <th class="py-2 px-2.5">Category Pair (A + B)</th>
+                      <th class="py-2 px-2.5 text-right">Shared Carts</th>
+                      <th class="py-2 px-2.5 text-right">Support %</th>
+                      <th class="py-2 px-2.5 text-right">Conf (A→B)</th>
+                      <th class="py-2 px-2.5 text-right">Lift Ratio</th>
+                    </tr>
+                  </thead>
+                  <tbody id="basket-tbody" class="divide-y divide-[#E2DDD5] font-mono text-[11px]"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right 6 Cols: Customer Acquisition Cohort Retention & LTV (CF-14) -->
+            <div class="lg:col-span-6 bi-card p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-xs font-bold text-[#1F2428]">Customer Acquisition Cohort Retention &amp; Repeat LTV (CF-14)</h3>
+                  <p class="text-[11px] text-[#686E73]">Grouped by `MIN(order_month)` first purchase cohort to track repeat retention and lifetime value</p>
+                </div>
+                <button type="button" onclick="switchTab('studio'); selectCaseFile(13);" class="px-2.5 py-1 rounded bg-[#E6E1DA] hover:bg-[#DCD6CD] text-[10px] font-mono font-semibold text-[#1F2428]">Open CF-14 SQL</button>
+              </div>
+              <div class="overflow-x-auto max-h-[290px]">
+                <table class="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr class="bg-[#E6E1DA] text-[#323A45] font-semibold sticky top-0">
+                      <th class="py-2 px-2.5">Cohort Month</th>
+                      <th class="py-2 px-2.5 text-right">New Buyers</th>
+                      <th class="py-2 px-2.5 text-right">Repeat %</th>
+                      <th class="py-2 px-2.5 text-right">Avg Orders</th>
+                      <th class="py-2 px-2.5 text-right">Avg LTV (INR)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cohort-tbody" class="divide-y divide-[#E2DDD5] font-mono text-[11px]"></tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Row 2 in View 3: CFO Price-Volume-Mix (PVM) Decomposition Bridge (CF-16) + Data Contracts -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div class="lg:col-span-7 bi-card p-4 space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 class="text-xs font-bold text-[#1F2428]">CFO Price-Volume-Mix (PVM) Profit Attribution Bridge (CF-16)</h3>
+                  <p class="text-[11px] text-[#686E73]">Decomposes H1 (`Apr–Sep`) vs H2 (`Oct–Mar`) Gross Profit Variance into Volume Effect (`ΔUnits × H1 Unit Profit`) and Price/Promo Effect (`H2 Units × ΔUnit Profit`)</p>
+                </div>
+                <button type="button" onclick="switchTab('studio'); selectCaseFile(15);" class="px-2.5 py-1 rounded bg-[#E6E1DA] hover:bg-[#DCD6CD] text-[10px] font-mono font-semibold text-[#1F2428]">Open CF-16 SQL</button>
+              </div>
+              <div class="overflow-x-auto max-h-[240px]">
+                <table class="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr class="bg-[#E6E1DA] text-[#323A45] font-semibold sticky top-0">
+                      <th class="py-1.5 px-2.5">Category</th>
+                      <th class="py-1.5 px-2.5 text-right">H1 Profit</th>
+                      <th class="py-1.5 px-2.5 text-right">Volume Effect</th>
+                      <th class="py-1.5 px-2.5 text-right">Price/Promo Effect</th>
+                      <th class="py-1.5 px-2.5 text-right">H2 Profit</th>
+                      <th class="py-1.5 px-2.5 text-right">Net Δ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pvm-tbody" class="divide-y divide-[#E2DDD5] font-mono text-[11px]"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="lg:col-span-5 bi-card p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-xs font-bold text-[#1F2428]">Automated General Ledger &amp; Schema Data Contracts</h3>
+                  <p class="text-[11px] text-[#686E73]">Real-time mathematical tie-out across independent views &amp; foreign keys</p>
+                </div>
+                <span class="px-2 py-0.5 rounded bg-[#DCE8DF] text-[#1E4D30] font-mono text-[10px] font-bold">4/4 CONTRACTS PASS</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr class="bg-[#E6E1DA] text-[#323A45] font-semibold">
+                      <th class="py-1.5 px-2">ID</th>
+                      <th class="py-1.5 px-2">GL / Schema Invariant</th>
+                      <th class="py-1.5 px-2 text-right">Expected == Actual</th>
+                      <th class="py-1.5 px-2 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="contracts-tbody" class="divide-y divide-[#E2DDD5] font-mono text-[11px]"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Full-Width Card: Forensic SQL Anti-Pattern vs Production Fix Comparator (CF-15) -->
+          <div class="bi-card p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-xs font-bold text-[#1F2428]">Forensic SQL Anti-Pattern vs. Production Fix Proof Comparator (CF-15)</h3>
+                <p class="text-[11px] text-[#686E73]">Live proof of why naive SQL queries distort retail KPIs—and the exact variance eliminated by CartLedgers CTE architecture</p>
+              </div>
+              <button type="button" onclick="switchTab('studio'); selectCaseFile(14);" class="px-3 py-1 rounded bg-[#2C3137] text-white text-[11px] font-semibold">Inspect CF-15 Proof Query</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-[#E6E1DA] text-[#323A45] font-semibold">
+                    <th class="py-2 px-3">Retail SQL Audit Dimension</th>
+                    <th class="py-2 px-3 text-right text-[#A63A3A]">Naive / Uncorrected SQL Output</th>
+                    <th class="py-2 px-3 text-right text-[#2B6E46]">CartLedger Production SQL Output</th>
+                    <th class="py-2 px-3 text-right">Distortion / Error Eliminated</th>
+                  </tr>
+                </thead>
+                <tbody id="sql-traps-tbody" class="divide-y divide-[#E2DDD5] font-mono text-xs"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================================ -->
+        <!-- VIEW 4: 16 INTERACTIVE SQL CASE FILES STUDIO                     -->
+        <!-- ================================================================ -->
+        <div id="view-studio" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div class="lg:col-span-4 bi-card p-4 space-y-2">
+            <div class="flex items-center justify-between border-b border-[#DCD6CD] pb-2">
+              <h2 class="text-xs font-bold text-[#1F2428]">16 SQL Case Files (Level 1 → Level 4)</h2>
+              <span class="text-[10px] font-mono text-[#686E73]">Click to Execute</span>
+            </div>
+            <div id="case-files-list" class="space-y-2 max-h-[620px] overflow-y-auto pr-1"></div>
+          </div>
+
+          <div class="lg:col-span-8 bi-card p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#DCD6CD] pb-2">
+              <div>
+                <div id="cf-badge" class="text-[10px] font-mono uppercase text-[#686E73]"></div>
+                <h2 id="cf-title" class="text-sm font-bold text-[#1F2428]"></h2>
+                <p id="cf-problem" class="text-xs text-[#686E73] mt-0.5"></p>
+                <div id="cf-concepts" class="text-[10px] font-mono text-[#323A45] mt-1"></div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="exportResultCSV()" class="px-2.5 py-1 rounded bg-[#E6E1DA] hover:bg-[#DCD6CD] text-[11px] font-medium text-[#1F2428]">Export CSV</button>
+                <button type="button" onclick="testCartLedgerGuardrail()" class="px-2.5 py-1 rounded bg-[#EAD8D8] text-[11px] font-medium text-[#8B2626]">Test DROP TABLE</button>
+                <button type="button" onclick="runSelectedSQL()" class="px-3 py-1 rounded bg-[#2C3137] text-white text-[11px] font-semibold">Run SQL</button>
+              </div>
+            </div>
+
+            <textarea id="sql-editor" rows="8" class="w-full bg-[#252A30] text-[#E6E1DA] border border-[#3A4047] rounded-lg p-3 font-mono text-xs outline-none"></textarea>
+
+            <!-- DBA Query Execution Plan & Telemetry Strip -->
+            <div class="p-3 rounded-lg bg-[#E6E1DA] border border-[#D5CFC7] space-y-2">
+              <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+                <span class="font-bold text-[#1F2428]">DBA Query Optimizer &amp; Execution Plan (`EXPLAIN QUERY PLAN`):</span>
+                <div id="dba-telemetry-pills" class="flex flex-wrap items-center gap-2"></div>
+              </div>
+              <div id="dba-plan-steps" class="text-[10px] font-mono text-[#323A45] bg-[#F3EFEA] p-2 rounded border border-[#DCD6CD] space-y-0.5 max-h-[85px] overflow-y-auto"></div>
+            </div>
+
+            <div id="sql-status" class="rounded p-2.5 text-xs font-mono border bg-[#DCE8DF] border-[#B8D0BF] text-[#1E4D30]"></div>
+
+            <div class="overflow-x-auto max-h-[250px]">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead id="sql-thead" class="bg-[#E6E1DA] text-[#323A45] font-semibold sticky top-0"></thead>
+                <tbody id="sql-tbody" class="divide-y divide-[#E2DDD5] font-mono text-xs"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/static/app.js?v=20261112_v8"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+.git/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+notebooks/
+powerbi/
+screenshots/
+tests/
+Dockerfile
+.dockerignore
+README.md
+

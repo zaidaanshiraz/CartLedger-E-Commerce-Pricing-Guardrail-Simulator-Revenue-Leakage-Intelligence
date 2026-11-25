@@ -1,0 +1,25 @@
+# Environment secrets (NEVER commit)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Power BI temporary files
+*.tmp
+*.bak
+~$*
+
+# SQL Server local files
+*.mdf
+*.ldf
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
